@@ -17,20 +17,38 @@ on:
         type: choice
         options: [collecte, suivi]
         default: collecte
-  # Lancement automatique : 3 fois par semaine, pays differents (voir la liste ci-dessous).
+  # Lancement automatique : une fois par semaine (lundi, vers 4h17 heure du Benin).
   schedule:
-    - cron: "17 3 * * 1"   # lundi    : Benin, Togo
-    - cron: "17 3 * * 3"   # mercredi : Cote d'Ivoire, Senegal, Cameroun
-    - cron: "17 3 * * 6"   # samedi   : France, Etats-Unis, Canada
+    - cron: "17 3 * * 1"
 
 concurrency:
   group: robot
   cancel-in-progress: false
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      groupes: ${{ steps.p.outputs.groupes }}
+    steps:
+      - id: p
+        env:
+          PAYS: ${{ inputs.pays }}
+        run: |
+          if [ -n "$PAYS" ]; then
+            echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
+          else
+            echo 'groupes=["BJ TG","CI SN CM","FR US CA"]' >> "$GITHUB_OUTPUT"
+          fi
+
   collecte:
+    needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        groupe: ${{ fromJSON(needs.plan.outputs.groupes) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,20 +68,11 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
           ROBOT_CAPTURE: "1"
-          SCHEDULE: ${{ github.event.schedule }}
-          PAYS: ${{ inputs.pays }}
+          PAYS: ${{ matrix.groupe }}
           MOTS: ${{ inputs.mots }}
           DEFIL: ${{ inputs.defilements || '6' }}
           MODE: ${{ inputs.mode || 'collecte' }}
         run: |
-          if [ -z "$PAYS" ]; then
-            case "$SCHEDULE" in
-              "17 3 * * 1") PAYS="BJ TG" ;;
-              "17 3 * * 3") PAYS="CI SN CM" ;;
-              "17 3 * * 6") PAYS="FR US CA" ;;
-              *) PAYS="BJ" ;;
-            esac
-          fi
           CMD=(xvfb-run -a python collecteur4.py --pays $PAYS --defilements "$DEFIL")
           if [ "$MODE" = "suivi" ]; then CMD+=(--suivi); fi
           if [ -n "$MOTS" ]; then CMD+=(--mots $MOTS); fi
@@ -74,7 +83,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: diagnostic
+          name: diagnostic-${{ strategy.job-index }}
           path: capture_*.png
           if-no-files-found: ignore
           retention-days: 7
