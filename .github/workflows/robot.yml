@@ -38,7 +38,7 @@ jobs:
           if [ -n "$PAYS" ]; then
             echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
           else
-            echo 'groupes=["BJ TG","CI SN CM","FR US CA"]' >> "$GITHUB_OUTPUT"
+            echo 'groupes=["BJ TG","CI SN CM","FR CA"]' >> "$GITHUB_OUTPUT"
           fi
 
   collecte:
