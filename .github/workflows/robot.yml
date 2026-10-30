@@ -18,8 +18,8 @@ on:
         options: [collecte, suivi]
         default: collecte
   # Lancement automatique : enleve les # des 2 lignes ci-dessous quand le test manuel marche.
-  # schedule:
-  #   - cron: "17 3 */2 * *"
+  schedule:
+    - cron: "17 3 */2 * *"
 
 concurrency:
   group: robot
