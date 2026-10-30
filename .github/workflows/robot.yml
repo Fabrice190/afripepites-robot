@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       pays:
-        description: "Codes pays separes par des espaces (ex : BJ  ou  BJ TG CI)"
-        default: "BJ"
+        description: "Codes pays separes par des espaces (ex : BJ  ou  BJ TG). VIDE = tous les pays, en 3 groupes"
+        default: ""
       mots:
         description: "Mots a chercher separes par des espaces (vide = tous les mots du robot)"
         default: ""
