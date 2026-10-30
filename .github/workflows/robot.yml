@@ -1,0 +1,69 @@
+name: Robot AfriPepites
+
+on:
+  workflow_dispatch:
+    inputs:
+      pays:
+        description: "Codes pays separes par des espaces (ex : BJ  ou  BJ TG CI)"
+        default: "BJ"
+      mots:
+        description: "Mots a chercher separes par des espaces (vide = tous les mots du robot)"
+        default: ""
+      defilements:
+        description: "Nombre de defilements par recherche"
+        default: "6"
+      mode:
+        description: "collecte (normal) ou suivi (vendeurs suivis seulement)"
+        type: choice
+        options: [collecte, suivi]
+        default: collecte
+  # Lancement automatique : enleve les # des 2 lignes ci-dessous quand le test manuel marche.
+  # schedule:
+  #   - cron: "17 3 */2 * *"
+
+concurrency:
+  group: robot
+  cancel-in-progress: false
+
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer le robot et son navigateur
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+          sudo apt-get install -y xvfb
+
+      - name: Lancer le robot
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
+          ROBOT_CAPTURE: "1"
+          PAYS: ${{ inputs.pays || 'BJ' }}
+          MOTS: ${{ inputs.mots }}
+          DEFIL: ${{ inputs.defilements || '6' }}
+          MODE: ${{ inputs.mode || 'collecte' }}
+        run: |
+          CMD=(xvfb-run -a python collecteur4.py --pays $PAYS --defilements "$DEFIL")
+          if [ "$MODE" = "suivi" ]; then CMD+=(--suivi); fi
+          if [ -n "$MOTS" ]; then CMD+=(--mots $MOTS); fi
+          echo "Commande : ${CMD[*]}"
+          "${CMD[@]}"
+
+      - name: Garder les photos d'ecran en cas de probleme
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic
+          path: capture_*.png
+          if-no-files-found: ignore
+          retention-days: 7
