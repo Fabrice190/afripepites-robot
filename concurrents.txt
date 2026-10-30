@@ -1,0 +1,1 @@
+# Un nom de vendeur par ligne (en plus de ceux suivis dans l'application)

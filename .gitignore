@@ -1,0 +1,8 @@
+# Ne jamais envoyer sur GitHub : secrets et fichiers de travail
+config_supabase.json
+.env
+base_pubs.csv
+pubs_veille.xlsx
+debug_*.txt
+capture_*.png
+__pycache__/
