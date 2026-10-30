@@ -17,9 +17,11 @@ on:
         type: choice
         options: [collecte, suivi]
         default: collecte
-  # Lancement automatique : enleve les # des 2 lignes ci-dessous quand le test manuel marche.
+  # Lancement automatique : 3 fois par semaine, pays differents (voir la liste ci-dessous).
   schedule:
-    - cron: "17 3 */2 * *"
+    - cron: "17 3 * * 1"   # lundi    : Benin, Togo
+    - cron: "17 3 * * 3"   # mercredi : Cote d'Ivoire, Senegal, Cameroun
+    - cron: "17 3 * * 6"   # samedi   : France, Etats-Unis, Canada
 
 concurrency:
   group: robot
@@ -48,11 +50,20 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
           ROBOT_CAPTURE: "1"
-          PAYS: ${{ inputs.pays || 'BJ' }}
+          SCHEDULE: ${{ github.event.schedule }}
+          PAYS: ${{ inputs.pays }}
           MOTS: ${{ inputs.mots }}
           DEFIL: ${{ inputs.defilements || '6' }}
           MODE: ${{ inputs.mode || 'collecte' }}
         run: |
+          if [ -z "$PAYS" ]; then
+            case "$SCHEDULE" in
+              "17 3 * * 1") PAYS="BJ TG" ;;
+              "17 3 * * 3") PAYS="CI SN CM" ;;
+              "17 3 * * 6") PAYS="FR US CA" ;;
+              *) PAYS="BJ" ;;
+            esac
+          fi
           CMD=(xvfb-run -a python collecteur4.py --pays $PAYS --defilements "$DEFIL")
           if [ "$MODE" = "suivi" ]; then CMD+=(--suivi); fi
           if [ -n "$MOTS" ]; then CMD+=(--mots $MOTS); fi
