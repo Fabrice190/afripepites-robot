@@ -1,0 +1,30 @@
+name: Test recherche magique (temporaire)
+
+on:
+  push:
+    branches: [test-recherche-magique]
+    paths: ["test_magique.py", ".github/workflows/test_magique.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer
+        run: pip install fastembed numpy
+      - name: Calculer les empreintes des phrases
+        run: python test_magique.py
+      - name: Ranger le resultat sur la branche de test
+        run: |
+          git config user.name "robot-test"
+          git config user.email "robot-test@users.noreply.github.com"
+          git add resultats_test_magique.json
+          git commit -m "Resultats du test de recherche magique"
+          git push
