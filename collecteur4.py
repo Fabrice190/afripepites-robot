@@ -39,15 +39,18 @@ LANGUE_PAYS = {"FR": "fr", "BE": "fr", "CA": "fr", "US": "en", "GB": "en"}
 # Des MOTS UNIQUES (recherches larges), classes par niche.
 NICHES_FR = {
     "Santé": ["douleur", "diabète", "tension", "prostate", "érection", "articulations",
-              "arthrose", "hémorroïdes", "ulcère", "fatigue", "insomnie", "vers",
+              "arthrose", "hémorroïdes", "ulcère", "fatigue", "insomnie",
               "paludisme", "cholestérol", "digestion", "constipation", "minceur", "ventre"],
     "Beauté / soin": ["savon", "crème", "huile", "sérum", "vergetures", "boutons",
                       "taches", "rides", "éclaircissant", "dentifrice", "ongles",
                       "cils", "parfum"],
     "Cheveux / barbe": ["cheveux", "chute", "repousse", "barbe", "perruque", "calvitie"],
     "Gadgets / maison": ["gadget", "montre", "écouteurs", "caméra", "lampe", "mixeur",
-                         "ventilateur", "massage", "chargeur", "réveil", "couteau"],
-    "Autres": ["bébé", "chaussures", "sacs", "voiture", "moto", "cuisine", "ménage"],
+                         "ventilateur", "massage", "chargeur"],
+    "Vitalité / bien-être": ["vitalité", "énergie", "endurance", "virilité", "tonus",
+                             "libido", "testostérone", "puissance", "cordyceps",
+                             "café", "tisane"],
+    "Autres": ["bébé", "chaussures"],
 }
 NICHES_EN = {
     "Santé": ["pain", "diabetes", "blood pressure", "prostate", "joint", "arthritis",
