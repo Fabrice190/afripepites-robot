@@ -25,15 +25,33 @@ MODELE = "Qdrant/clip-ViT-B-32-vision"   # 512 dimensions (CLIP ViT-B/32)
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
 
-def rpc(nom, corps):
+def rpc(nom, corps, essais=4):
+    """Appelle la base ; reessaie quelques fois si le serveur a un petit souci."""
     url = os.environ["SUPABASE_URL"].rstrip("/") + "/rest/v1/rpc/" + nom
     cle = os.environ["SUPABASE_KEY"]
-    req = urllib.request.Request(
-        url, data=json.dumps(corps).encode("utf-8"), method="POST",
-        headers={"apikey": cle, "Authorization": "Bearer " + cle,
-                 "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return json.loads(r.read().decode("utf-8") or "null")
+    donnees = json.dumps(corps).encode("utf-8")
+    derniere = None
+    for tentative in range(1, essais + 1):
+        req = urllib.request.Request(
+            url, data=donnees, method="POST",
+            headers={"apikey": cle, "Authorization": "Bearer " + cle,
+                     "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.loads(r.read().decode("utf-8") or "null")
+        except urllib.error.HTTPError as e:
+            detail = ""
+            try:
+                detail = e.read().decode("utf-8", "replace")[:300]
+            except Exception:
+                pass
+            derniere = f"HTTP {e.code} {detail}"
+        except Exception as e:
+            derniere = f"{type(e).__name__}: {e}"
+        print(f"  [{nom}] essai {tentative}/{essais} rate : {derniere}", flush=True)
+        if tentative < essais:
+            time.sleep(5 * tentative)
+    raise RuntimeError(f"{nom} a echoue apres {essais} essais : {derniere}")
 
 
 def telecharger(url):
@@ -78,9 +96,19 @@ def main():
     modele = ImageEmbedding(model_name=MODELE, cache_dir="./modele_cache")
 
     traites = reussis = echecs = 0
+    erreurs_suite = 0
     debut = time.time()
     while traites < args.max:
-        a_faire = rpc("pubs_a_indexer", {"code": code, "n": min(args.lot, args.max - traites)})
+        try:
+            a_faire = rpc("pubs_a_indexer", {"code": code, "n": min(args.lot, args.max - traites)})
+        except Exception as e:
+            erreurs_suite += 1
+            print("Impossible de lire la liste a traiter :", e, flush=True)
+            if erreurs_suite >= 3:
+                print("Trop d'erreurs de suite : arret propre (rien n'est perdu).")
+                break
+            time.sleep(20)
+            continue
         if not a_faire:
             print("Plus rien a indexer.")
             break
@@ -104,8 +132,17 @@ def main():
                 envoi += [{"cle": c, "ko": True} for c in cles]
         echecs += len(ko)
         traites += len(a_faire)
+        envoi_ok = True
         for i in range(0, len(envoi), 40):
-            rpc("enregistrer_empreintes", {"code": code, "lignes": envoi[i:i + 40]})
+            try:
+                rpc("enregistrer_empreintes", {"code": code, "lignes": envoi[i:i + 40]})
+            except Exception as e:
+                envoi_ok = False
+                print("Envoi impossible pour un morceau (il sera repris plus tard) :", e, flush=True)
+        erreurs_suite = 0 if envoi_ok else erreurs_suite + 1
+        if erreurs_suite >= 3:
+            print("Trop d'erreurs d'envoi de suite : arret propre (rien n'est perdu).")
+            break
         print(f"{traites} traitees ({reussis} indexees, {echecs} liens inutilisables) "
               f"- {int(time.time() - debut)} s", flush=True)
 
