@@ -17,11 +17,10 @@ on:
         type: choice
         options: [collecte, suivi]
         default: collecte
-  # Lancement automatique, 2 fois par jour : 4h17 et 12h17 (heure du Benin).
-  # Le matin : 4 groupes de pays. A midi : les 4 autres. (voir l'etape "plan")
+  # Lancement automatique, 4 fois par jour : 4h17, 10h17, 15h17 et 20h17 (heure du Benin),
+  # avec 2 robots (2 groupes de pays) a chaque fois. (voir l'etape "plan")
   schedule:
-    - cron: "17 3 * * *"
-    - cron: "17 11 * * *"
+    - cron: "17 3,9,14,19 * * *"
 
 concurrency:
   group: robot
@@ -40,11 +39,12 @@ jobs:
           if [ -n "$PAYS" ]; then
             echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "schedule" ]; then
-            # 2 passages par jour, 4 robots chacun (en parallele) : on menage Facebook.
-            if [ "$(date -u +%H)" -lt 8 ]; then
-              G='["BJ TG","CI SN CM","ML BF NE","GN MR SL"]'
-            else
-              G='["NG GH","GA CG CD","TD CF LR GM","FR CA"]'
+            # 4 passages par jour, 2 robots chacun : on menage Facebook. (heures en UTC = Benin - 1h)
+            H=$(date -u +%H)
+            if   [ "$H" -lt 6 ];  then G='["BJ TG","CI SN CM"]'            # 4h17 Benin
+            elif [ "$H" -lt 12 ]; then G='["ML BF NE","GN MR SL"]'         # 10h17 Benin
+            elif [ "$H" -lt 17 ]; then G='["NG GH","GA CG CD"]'            # 15h17 Benin
+            else                       G='["TD CF LR GM","FR CA"]'         # 20h17 Benin
             fi
             echo "groupes=$G" >> "$GITHUB_OUTPUT"
           else
