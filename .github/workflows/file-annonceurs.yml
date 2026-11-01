@@ -13,12 +13,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  annonceurs:
+  verifier:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 5
+    outputs:
+      a_faire: ${{ steps.file.outputs.a_faire }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Y a-t-il quelqu'un dans la file d'attente ?
         id: file
         env:
@@ -43,32 +43,42 @@ jobs:
           echo "Annonceurs en attente : $N"
           if [ "$N" -gt 0 ]; then echo "a_faire=oui" >> "$GITHUB_OUTPUT"; fi
 
+  annonceurs:
+    needs: verifier
+    if: needs.verifier.outputs.a_faire == 'oui'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ["1/3", "2/3", "3/3"]   # 3 robots en meme temps, chacun prend 1 annonceur sur 3
+    steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
-        if: steps.file.outputs.a_faire == 'oui'
         with:
           python-version: "3.12"
 
       - name: Installer le robot et son navigateur
-        if: steps.file.outputs.a_faire == 'oui'
         run: |
           pip install -r requirements.txt
           python -m playwright install --with-deps chromium
           sudo apt-get install -y xvfb
 
       - name: Aller chercher les pubs des annonceurs suivis
-        if: steps.file.outputs.a_faire == 'oui'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
           ROBOT_CAPTURE: "1"
-        run: xvfb-run -a python collecteur4.py --file --defilements 12
+          PART: ${{ matrix.part }}
+        run: xvfb-run -a python collecteur4.py --file --part "$PART" --defilements 12
 
       - name: Garder les photos d'ecran en cas de probleme
-        if: always() && steps.file.outputs.a_faire == 'oui'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: diagnostic-file
+          name: diagnostic-file-${{ strategy.job-index }}
           path: capture_*.png
           if-no-files-found: ignore
           retention-days: 7
