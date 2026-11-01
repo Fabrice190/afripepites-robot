@@ -39,15 +39,20 @@ jobs:
           if [ -n "$PAYS" ]; then
             echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "schedule" ]; then
-            # Rotation : chaque groupe Afrique est visite tous les 2 jours, France/Canada le dimanche
+            # Rotation : 2 groupes par jour. Les groupes de base (Benin/Togo, Cote d'Ivoire/Senegal/Cameroun)
+            # reviennent tous les 2-3 jours, les autres au moins une fois par semaine. France/Canada le dimanche.
             case "$(date -u +%u)" in
-              1|3|5) G='["BJ TG","MA DZ TN"]' ;;
-              2|4|6) G='["CI SN CM","NG GH"]' ;;
-              7)     G='["FR CA","BJ TG"]' ;;
+              1) G='["BJ TG","ML BF NE"]' ;;
+              2) G='["CI SN CM","GN MR SL"]' ;;
+              3) G='["NG GH","GA CG CD"]' ;;
+              4) G='["TD CF LR GM","BJ TG"]' ;;
+              5) G='["CI SN CM","ML BF NE"]' ;;
+              6) G='["GN MR SL","NG GH"]' ;;
+              7) G='["GA CG CD","FR CA"]' ;;
             esac
             echo "groupes=$G" >> "$GITHUB_OUTPUT"
           else
-            echo 'groupes=["BJ TG","CI SN CM","MA DZ TN","NG GH","FR CA"]' >> "$GITHUB_OUTPUT"
+            echo 'groupes=["BJ TG","CI SN CM","ML BF NE","GN MR SL","NG GH","GA CG CD","TD CF LR GM","FR CA"]' >> "$GITHUB_OUTPUT"
           fi
 
   collecte:
