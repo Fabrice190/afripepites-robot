@@ -6,6 +6,11 @@ on:
       pays:
         description: "Codes pays separes par des espaces (ex : BJ  ou  BJ TG). VIDE = tous les pays, en 3 groupes"
         default: ""
+      passage:
+        description: "Lancer un des 4 passages du jour (1 = 0h, 2 = 6h, 3 = 12h, 4 = 20h). VIDE = tous les pays. Ignore si 'pays' est rempli."
+        type: choice
+        options: ["", "1", "2", "3", "4"]
+        default: ""
       mots:
         description: "Mots a chercher separes par des espaces (vide = tous les mots du robot)"
         default: ""
@@ -35,17 +40,25 @@ jobs:
       - id: p
         env:
           PAYS: ${{ inputs.pays }}
+          PASSAGE: ${{ inputs.passage }}
         run: |
+          # Les 4 passages du jour (2 robots chacun)
+          P1='["BJ TG","CI SN CM"]'      # 0h17 Benin
+          P2='["ML BF NE","GN MR SL"]'   # 6h17 Benin
+          P3='["NG GH","GA CG CD"]'      # 12h17 Benin
+          P4='["TD CF LR GM","FR CA"]'   # 20h17 Benin
           if [ -n "$PAYS" ]; then
             echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
+          elif [ -n "$PASSAGE" ]; then
+            case "$PASSAGE" in 1) G="$P1";; 2) G="$P2";; 3) G="$P3";; 4) G="$P4";; esac
+            echo "groupes=$G" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "schedule" ]; then
-            # 4 passages par jour, 2 robots chacun : on menage Facebook. (heures en UTC = Benin - 1h)
-            # Les plages sont larges pour que ca marche meme si GitHub demarre avec du retard.
+            # Heures en UTC = Benin - 1h. Plages larges pour tolerer un depart avec du retard.
             H=$((10#$(date -u +%H)))
-            if   [ "$H" -ge 22 ] || [ "$H" -lt 2 ]; then G='["BJ TG","CI SN CM"]'      # 0h17 Benin
-            elif [ "$H" -lt 9 ];  then G='["ML BF NE","GN MR SL"]'                      # 6h17 Benin
-            elif [ "$H" -lt 16 ]; then G='["NG GH","GA CG CD"]'                         # 12h17 Benin
-            else                       G='["TD CF LR GM","FR CA"]'                      # 20h17 Benin
+            if   [ "$H" -ge 22 ] || [ "$H" -lt 2 ]; then G="$P1"
+            elif [ "$H" -lt 9 ];  then G="$P2"
+            elif [ "$H" -lt 16 ]; then G="$P3"
+            else                       G="$P4"
             fi
             echo "groupes=$G" >> "$GITHUB_OUTPUT"
           else
