@@ -365,7 +365,7 @@ def charger_config(chemin=FICHIER_CONFIG):
     return None
 
 
-def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=200):
+def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
     """Envoie toute la base dans Supabase. Ne fait rien si la config manque."""
     conf = charger_config(chemin_config)
     if not conf:
@@ -392,21 +392,34 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=200):
             "video_url": l.get("video_url", ""),
             "lien_dest": l.get("lien_dest", ""),
         })
-    envoyees = 0
-    for i in range(0, len(lignes), paquet):
-        corps = json.dumps({"code": conf["code_robot"],
-                            "lignes": lignes[i:i + paquet]}).encode("utf-8")
+    def envoyer_lot(lot):
+        """Envoie un lot. Si la base repond 'trop long' (timeout), on coupe le lot en deux et on recommence."""
+        corps = json.dumps({"code": conf["code_robot"], "lignes": lot}).encode("utf-8")
         req = urllib.request.Request(url, data=corps, headers=entetes, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 r.read()
-            envoyees += len(lignes[i:i + paquet])
+            return len(lot)
         except urllib.error.HTTPError as e:
-            print(f"   Envoi refuse ({e.code}) : {e.read().decode('utf-8', 'ignore')[:200]}")
-            return False
+            detail = e.read().decode("utf-8", "ignore")[:200]
+            if e.code >= 500 and len(lot) > 4:
+                milieu = len(lot) // 2
+                time.sleep(1)
+                a = envoyer_lot(lot[:milieu])
+                b = envoyer_lot(lot[milieu:]) if a is not None else None
+                return None if (a is None or b is None) else a + b
+            print(f"   Envoi refuse ({e.code}) : {detail}")
+            return None
         except Exception as e:
             print(f"   Envoi impossible : {e}")
+            return None
+
+    envoyees = 0
+    for i in range(0, len(lignes), paquet):
+        n = envoyer_lot(lignes[i:i + paquet])
+        if n is None:
             return False
+        envoyees += n
     print(f"Base en ligne mise a jour : {envoyees} pubs envoyees.")
     return True
 
