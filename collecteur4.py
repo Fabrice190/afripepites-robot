@@ -248,7 +248,7 @@ JS_MEDIAS = """
 """
 
 
-def recuperer_texte(page, pays, mot, defilements, pause):
+def recuperer_texte(page, pays, mot, defilements, pause, sortie_rapide=False):
     url = (
         "https://www.facebook.com/ads/library/?active_status=active&ad_type=all"
         f"&country={pays}&q={quote_plus(mot)}"
@@ -261,6 +261,13 @@ def recuperer_texte(page, pays, mot, defilements, pause):
             page.get_by_role("button", name=nom).first.click(timeout=2000)
             page.wait_for_timeout(1500)
             break
+        except Exception:
+            pass
+    if sortie_rapide:
+        # Aucune pub dans ce pays : inutile de descendre dans la page
+        try:
+            if "Library ID:" not in page.inner_text("body"):
+                return "", {}
         except Exception:
             pass
     for _ in range(defilements):
@@ -363,7 +370,7 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=200):
     conf = charger_config(chemin_config)
     if not conf:
         print(f"(Pas de {chemin_config} ni de variables secretes : envoi vers la base en ligne ignore.)")
-        return
+        return False
     url = conf["url"].rstrip("/") + "/rest/v1/rpc/envoyer_pubs"
     entetes = {"apikey": conf["cle_publique"],
                "Authorization": "Bearer " + conf["cle_publique"],
@@ -396,11 +403,12 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=200):
             envoyees += len(lignes[i:i + paquet])
         except urllib.error.HTTPError as e:
             print(f"   Envoi refuse ({e.code}) : {e.read().decode('utf-8', 'ignore')[:200]}")
-            return
+            return False
         except Exception as e:
             print(f"   Envoi impossible : {e}")
-            return
+            return False
     print(f"Base en ligne mise a jour : {envoyees} pubs envoyees.")
+    return True
 
 
 # ---------------------------------------------------------------
@@ -610,6 +618,50 @@ def lire_concurrents(chemin=FICHIER_SUIVI, chemin_config=FICHIER_CONFIG):
     return uniques
 
 
+TOUS_PAYS = ["BJ", "TG", "CI", "SN", "CM", "ML", "BF", "NE", "GN", "MR", "GA", "CG",
+             "CD", "TD", "CF", "NG", "GH", "SL", "LR", "GM", "FR", "CA"]
+
+
+def _appel_robot(fonction, corps):
+    """Appelle une fonction de la base avec le code du robot. Renvoie la reponse JSON."""
+    conf = charger_config(FICHIER_CONFIG)
+    if not conf:
+        raise RuntimeError("reglages Supabase absents")
+    corps = dict(corps, code=conf["code_robot"])
+    req = urllib.request.Request(
+        conf["url"].rstrip("/") + "/rest/v1/rpc/" + fonction,
+        data=json.dumps(corps).encode("utf-8"), method="POST",
+        headers={"apikey": conf["cle_publique"],
+                 "Authorization": "Bearer " + conf["cle_publique"],
+                 "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        texte = r.read().decode("utf-8")
+    return json.loads(texte) if texte else None
+
+
+def lire_file_attente():
+    """Annonceurs que quelqu'un vient de suivre et dont on n'a pas encore ramene les pubs."""
+    try:
+        return [str(x) for x in (_appel_robot("suivis_a_traiter", {}) or [])]
+    except Exception as e:
+        print(f"(Impossible de lire la file d'attente : {e})")
+        return []
+
+
+def marquer_traite(nom):
+    try:
+        _appel_robot("marquer_suivi_traite", {"p_nom": nom})
+    except Exception as e:
+        print(f"(Impossible de marquer {nom!r} comme traite : {e})")
+
+
+def pays_connus(nom):
+    try:
+        return [str(x) for x in (_appel_robot("pays_de_suivi", {"p_nom": nom}) or [])]
+    except Exception:
+        return []
+
+
 def _norm(t):
     """Minuscules, sans accents ni signes : pour comparer des noms."""
     import unicodedata
@@ -620,10 +672,22 @@ def _norm(t):
 
 def construire_recherches(args):
     """Liste de (pays, niche, mot) a faire."""
+    if args.file:
+        noms = lire_file_attente()
+        args.noms_file = noms
+        # Premier passage : tous les pays couverts par le robot
+        return [(pays, "", nom) for nom in noms for pays in TOUS_PAYS]
     if args.suivi:
         noms = lire_concurrents()
         if not noms:
             print(f"Aucun vendeur dans {FICHIER_SUIVI}. Ecris un nom par ligne dans ce fichier.")
+        if args.pays_connus:
+            # Passages de routine : seulement les pays ou l'annonceur a deja des pubs chez nous
+            recherches = []
+            for nom in noms:
+                liste = sorted(set(pays_connus(nom)) | {"BJ"})
+                recherches += [(pays, "", nom) for pays in liste]
+            return recherches
         return [(pays, "", nom) for pays in args.pays for nom in noms]
     pays_liste = args.pays
     if args.zone:
@@ -664,11 +728,16 @@ def main():
                    help="Envoie la base actuelle vers Supabase sans rien collecter")
     p.add_argument("--suivi", action="store_true",
                    help=f"Mode suivi : cherche chaque vendeur ecrit dans {FICHIER_SUIVI}")
+    p.add_argument("--file", action="store_true",
+                   help="File d'attente : annonceurs tout juste suivis, dans tous les pays")
+    p.add_argument("--pays-connus", action="store_true", dest="pays_connus",
+                   help="Avec --suivi : seulement les pays ou l'annonceur a deja des pubs chez nous")
     p.add_argument("--debug", action="store_true",
                    help="Sauvegarde le texte brut de chaque page")
     args = p.parse_args()
-    if args.suivi:
+    if args.suivi or args.file:
         args.defilements = max(args.defilements, 12)
+    args.noms_file = []
 
     if args.envoyer_seulement:
         base = charger_base(FICHIER_BASE)
@@ -683,10 +752,14 @@ def main():
     from playwright.sync_api import sync_playwright
 
     recherches = construire_recherches(args)
+    if args.file and not recherches:
+        print("File d'attente vide : rien a faire.")
+        return
     base = charger_base(FICHIER_BASE)
     avant = len(base)
     total = len(recherches)
     print(f"{total} recherches a faire.")
+    erreurs = {}
 
     try:
         with sync_playwright() as pw:
@@ -700,15 +773,17 @@ def main():
                 print(f"\n[{fait}/{total}] {pays} - {niche} - {mot!r}")
                 try:
                     texte, medias = recuperer_texte(page, pays, mot,
-                                                    args.defilements, args.pause)
+                                                    args.defilements, args.pause,
+                                                    sortie_rapide=bool(args.file or args.suivi))
                 except Exception as erreur:
                     print(f"   Probleme sur cette recherche : {erreur}")
+                    erreurs[mot] = erreurs.get(mot, 0) + 1
                     continue
                 if args.debug:
                     nom = f"debug_{pays}_" + re.sub(r"\W+", "_", mot) + ".txt"
                     Path(nom).write_text(texte, encoding="utf-8")
                 pubs = lire_pubs(texte, pays, mot)
-                if args.suivi:
+                if args.suivi or args.file:
                     # On ne garde que les pubs de CE vendeur (pas les autres qui citent son nom)
                     voulu = _norm(mot)
                     pubs = [x for x in pubs if voulu and voulu in _norm(x.get("annonceur", ""))]
@@ -738,10 +813,11 @@ def main():
                             pass
                 if fait % 5 == 0:
                     enregistrer_base(FICHIER_BASE, base)
-                time.sleep(random.uniform(3, 6))
+                time.sleep(random.uniform(1, 2) if (args.file or args.suivi) and not pubs else random.uniform(3, 6))
             navigateur.close()
     except KeyboardInterrupt:
         print("\nArret demande : on sauvegarde ce qui a ete collecte.")
+        args.noms_file = []
     finally:
         enregistrer_base(FICHIER_BASE, base)
 
@@ -754,7 +830,16 @@ def main():
         print("Ferme Excel puis relance la commande (les donnees sont sauvegardees).")
 
     if not args.sans_envoi:
-        envoyer_supabase(base)
+        envoye = envoyer_supabase(base)
+        # File d'attente : on coche l'annonceur seulement si l'envoi a reussi
+        # et si Facebook n'a pas bloque plus de la moitie des recherches
+        if args.file and envoye:
+            for nom in args.noms_file:
+                if erreurs.get(nom, 0) <= len(TOUS_PAYS) // 2:
+                    marquer_traite(nom)
+                    print(f"Annonceur traite : {nom}")
+                else:
+                    print(f"Annonceur a refaire (trop d'erreurs) : {nom}")
 
     aujourdhui = date.today()
     longues = [(jours_depuis(l, aujourdhui), l) for l in base.values()]
