@@ -241,19 +241,35 @@ JS_MEDIAS = """
         break;
       } catch (e) {}
     }
-    sortie[id] = {type: type, vignette: poster || meilleure, video: video || '', dest: dest};
+    // Numero de la page Facebook de l'annonceur (cache dans les liens de la creative)
+    let pageId = '';
+    for (const a of carte.querySelectorAll('a[href]')) {
+      const h = a.href || '';
+      let m2 = h.match(/view_all_page_id=(\\d{6,})/);
+      if (!m2) m2 = h.match(/^https?:\\/\\/(?:[a-z0-9-]+\\.)?facebook\\.com\\/(?:profile\\.php\\?id=)?(\\d{8,})(?:[\\/?&#]|$)/);
+      if (m2) { pageId = m2[1]; break; }
+    }
+    sortie[id] = {type: type, vignette: poster || meilleure, video: video || '', dest: dest, page_id: pageId};
   }
   return sortie;
 }
 """
 
 
-def recuperer_texte(page, pays, mot, defilements, pause, sortie_rapide=False):
-    url = (
-        "https://www.facebook.com/ads/library/?active_status=active&ad_type=all"
-        f"&country={pays}&q={quote_plus(mot)}"
-        "&search_type=keyword_unordered&media_type=all"
-    )
+def recuperer_texte(page, pays, mot, defilements, pause, sortie_rapide=False, page_id=None):
+    if page_id:
+        # Toutes les pubs d'UNE page Facebook precise (par son numero)
+        url = (
+            "https://www.facebook.com/ads/library/?active_status=active&ad_type=all"
+            f"&country={pays}&view_all_page_id={page_id}"
+            "&search_type=page&media_type=all"
+        )
+    else:
+        url = (
+            "https://www.facebook.com/ads/library/?active_status=active&ad_type=all"
+            f"&country={pays}&q={quote_plus(mot)}"
+            "&search_type=keyword_unordered&media_type=all"
+        )
     page.goto(url, wait_until="domcontentloaded", timeout=60000)
     page.wait_for_timeout(6000)
     for nom in BOUTONS_COOKIES:
@@ -675,6 +691,50 @@ def pays_connus(nom):
         return []
 
 
+def pages_de_suivi(nom):
+    """Numeros de pages Facebook deja connus pour cet annonceur suivi (liste vide si inconnus)."""
+    try:
+        return [str(x) for x in (_appel_robot("pages_de_suivi", {"p_nom": nom}) or [])]
+    except Exception:
+        return []
+
+
+def enregistrer_pages_suivi(nom, ids):
+    try:
+        _appel_robot("enregistrer_pages_suivi", {"p_nom": nom, "p_ids": list(ids)})
+    except Exception as e:
+        print(f"(Impossible d'enregistrer les numeros de page de {nom!r} : {e})")
+
+
+def choisir_pages(pubs, medias, nom, maxi=3):
+    """Parmi les pubs trouvees pour ce nom, retient les pages dont le nom est EXACTEMENT
+    celui de l'annonceur suivi (les plus actives d'abord, 3 au maximum)."""
+    voulu = _norm(nom)
+    if not voulu:
+        return []
+    compte = {}
+    for pub in pubs:
+        pid = (medias.get(pub["id"], {}) or {}).get("page_id", "")
+        if not pid:
+            continue
+        if _norm(pub.get("annonceur", "")) == voulu:
+            compte[pid] = compte.get(pid, 0) + 1
+    return [pid for pid, _ in sorted(compte.items(), key=lambda x: -x[1])[:maxi]]
+
+
+def trouver_pages(page, nom, pause):
+    """Cherche l'annonceur dans TOUS les pays et lit le numero de sa page Facebook."""
+    try:
+        texte, medias = recuperer_texte(page, "ALL", nom, 4, pause)
+    except Exception as erreur:
+        print(f"   Recherche du numero de page impossible : {erreur}")
+        return []
+    pubs = lire_pubs(texte, "ALL", nom)
+    ids = choisir_pages(pubs, medias, nom)
+    print(f"   Numeros de page trouves pour {nom!r} : {ids if ids else 'aucun'} ({len(pubs)} pubs lues)")
+    return ids
+
+
 def ma_part(noms, part):
     """Plusieurs robots en parallele : 'i/N' = le robot numero i (sur N) prend 1 annonceur sur N."""
     try:
@@ -795,28 +855,51 @@ def main():
             )
             page = contexte.new_page()
             captures = 0
+            # Annonceurs suivis : on retrouve d'abord le numero de leur page Facebook
+            pages_par_nom = {}
+            if args.suivi or args.file:
+                for nom_suivi in dict.fromkeys(m for (_, _, m) in recherches):
+                    ids = pages_de_suivi(nom_suivi)
+                    if not ids:
+                        ids = trouver_pages(page, nom_suivi, args.pause)
+                        if ids:
+                            enregistrer_pages_suivi(nom_suivi, ids)
+                    pages_par_nom[nom_suivi] = ids
             for fait, (pays, niche, mot) in enumerate(recherches, start=1):
                 print(f"\n[{fait}/{total}] {pays} - {niche} - {mot!r}")
-                try:
-                    texte, medias = recuperer_texte(page, pays, mot,
-                                                    args.defilements, args.pause,
-                                                    sortie_rapide=bool(args.file or args.suivi))
-                except Exception as erreur:
-                    print(f"   Probleme sur cette recherche : {erreur}")
-                    erreurs[mot] = erreurs.get(mot, 0) + 1
+                ids_page = pages_par_nom.get(mot) or [None]
+                pubs = []
+                echec = False
+                for pid in ids_page:
+                    try:
+                        texte, medias = recuperer_texte(page, pays, mot,
+                                                        args.defilements, args.pause,
+                                                        sortie_rapide=bool(args.file or args.suivi),
+                                                        page_id=pid)
+                    except Exception as erreur:
+                        print(f"   Probleme sur cette recherche : {erreur}")
+                        erreurs[mot] = erreurs.get(mot, 0) + 1
+                        echec = True
+                        continue
+                    if args.debug:
+                        nom = f"debug_{pays}_" + re.sub(r"\W+", "_", mot) + ".txt"
+                        Path(nom).write_text(texte, encoding="utf-8")
+                    morceau = lire_pubs(texte, pays, mot)
+                    if (args.suivi or args.file) and not pid:
+                        # Sans numero de page : on ne garde que les pubs de CE vendeur (par son nom)
+                        voulu = _norm(mot)
+                        morceau = [x for x in morceau if voulu and voulu in _norm(x.get("annonceur", ""))]
+                    for x in morceau:
+                        x["_info"] = medias.get(x["id"], {})
+                    pubs += morceau
+                if echec and not pubs:
                     continue
-                if args.debug:
-                    nom = f"debug_{pays}_" + re.sub(r"\W+", "_", mot) + ".txt"
-                    Path(nom).write_text(texte, encoding="utf-8")
-                pubs = lire_pubs(texte, pays, mot)
-                if args.suivi or args.file:
-                    # On ne garde que les pubs de CE vendeur (pas les autres qui citent son nom)
-                    voulu = _norm(mot)
-                    pubs = [x for x in pubs if voulu and voulu in _norm(x.get("annonceur", ""))]
+                medias = {x["id"]: x.get("_info", {}) for x in pubs}
                 avec_media = 0
                 avec_dest = 0
                 for pub in pubs:
                     pub["niche"] = niche
+                    pub.pop("_info", None)
                     info = medias.get(pub["id"], {})
                     pub["media_type"] = info.get("type", "")
                     pub["media_url"] = info.get("vignette", "")
