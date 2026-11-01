@@ -73,6 +73,10 @@ jobs:
     if: needs.plan.outputs.suivis == 'oui'
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ["1/3", "2/3", "3/3"]   # 3 robots en meme temps
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -89,12 +93,13 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
           ROBOT_CAPTURE: "1"
-        run: xvfb-run -a python collecteur4.py --suivi --pays-connus --defilements 12
+          PART: ${{ matrix.part }}
+        run: xvfb-run -a python collecteur4.py --suivi --pays-connus --part "$PART" --defilements 12
       - name: Garder les photos d'ecran en cas de probleme
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: diagnostic-suivis
+          name: diagnostic-suivis-${{ strategy.job-index }}
           path: capture_*.png
           if-no-files-found: ignore
           retention-days: 7

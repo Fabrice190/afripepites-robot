@@ -662,6 +662,17 @@ def pays_connus(nom):
         return []
 
 
+def ma_part(noms, part):
+    """Plusieurs robots en parallele : 'i/N' = le robot numero i (sur N) prend 1 annonceur sur N."""
+    try:
+        i, n = [int(x) for x in str(part or "1/1").split("/")]
+    except Exception:
+        i, n = 1, 1
+    if n < 1 or not 1 <= i <= n:
+        i, n = 1, 1
+    return noms[i - 1::n]
+
+
 def _norm(t):
     """Minuscules, sans accents ni signes : pour comparer des noms."""
     import unicodedata
@@ -673,14 +684,14 @@ def _norm(t):
 def construire_recherches(args):
     """Liste de (pays, niche, mot) a faire."""
     if args.file:
-        noms = lire_file_attente()
+        noms = ma_part(lire_file_attente(), args.part)
         args.noms_file = noms
         # Premier passage : tous les pays couverts par le robot
         return [(pays, "", nom) for nom in noms for pays in TOUS_PAYS]
     if args.suivi:
-        noms = lire_concurrents()
+        noms = ma_part(lire_concurrents(), args.part)
         if not noms:
-            print(f"Aucun vendeur dans {FICHIER_SUIVI}. Ecris un nom par ligne dans ce fichier.")
+            print(f"Aucun vendeur a traiter (fichier {FICHIER_SUIVI} ou base en ligne).")
         if args.pays_connus:
             # Passages de routine : seulement les pays ou l'annonceur a deja des pubs chez nous
             recherches = []
@@ -730,6 +741,8 @@ def main():
                    help=f"Mode suivi : cherche chaque vendeur ecrit dans {FICHIER_SUIVI}")
     p.add_argument("--file", action="store_true",
                    help="File d'attente : annonceurs tout juste suivis, dans tous les pays")
+    p.add_argument("--part", default="1/1",
+                   help="Robots en parallele : 2/3 = je suis le robot 2 sur 3")
     p.add_argument("--pays-connus", action="store_true", dest="pays_connus",
                    help="Avec --suivi : seulement les pays ou l'annonceur a deja des pubs chez nous")
     p.add_argument("--debug", action="store_true",
