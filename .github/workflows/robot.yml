@@ -36,6 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       groupes: ${{ steps.p.outputs.groupes }}
+      suivis: ${{ steps.p.outputs.suivis }}
     steps:
       - id: p
         env:
@@ -55,7 +56,7 @@ jobs:
           elif [ "${{ github.event_name }}" = "schedule" ]; then
             # Heures en UTC = Benin - 1h. Plages larges pour tolerer un depart avec du retard.
             H=$((10#$(date -u +%H)))
-            if   [ "$H" -ge 22 ] || [ "$H" -lt 2 ]; then G="$P1"
+            if   [ "$H" -ge 22 ] || [ "$H" -lt 2 ]; then G="$P1"; echo "suivis=oui" >> "$GITHUB_OUTPUT"   # annonceurs suivis : 1 fois par jour (0h17)
             elif [ "$H" -lt 9 ];  then G="$P2"
             elif [ "$H" -lt 16 ]; then G="$P3"
             else                       G="$P4"
@@ -64,6 +65,39 @@ jobs:
           else
             echo 'groupes=["BJ TG","CI SN CM","ML BF NE","GN MR SL","NG GH","GA CG CD","TD CF LR GM","FR CA"]' >> "$GITHUB_OUTPUT"
           fi
+
+  # Annonceurs suivis : chaque jour, le robot ramene TOUTES les pubs actives
+  # des annonceurs que les utilisateurs suivent dans l'application (bouton "Suivre").
+  suivis:
+    needs: plan
+    if: needs.plan.outputs.suivis == 'oui'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer le robot et son navigateur
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+          sudo apt-get install -y xvfb
+      - name: Lancer le robot sur les annonceurs suivis
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
+          ROBOT_CAPTURE: "1"
+        run: xvfb-run -a python collecteur4.py --pays BJ TG CI SN CM --suivi --defilements 12
+      - name: Garder les photos d'ecran en cas de probleme
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-suivis
+          path: capture_*.png
+          if-no-files-found: ignore
+          retention-days: 7
 
   collecte:
     needs: plan
