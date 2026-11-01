@@ -17,9 +17,10 @@ on:
         type: choice
         options: [collecte, suivi]
         default: collecte
-  # Lancement automatique : une fois par semaine (lundi, vers 4h17 heure du Benin).
+  # Lancement automatique : tous les jours vers 4h17 (heure du Benin).
+  # Chaque jour, tous les groupes de pays sont visites en parallele (voir l'etape "plan").
   schedule:
-    - cron: "17 3 * * 1"
+    - cron: "17 3 * * *"
 
 concurrency:
   group: robot
@@ -37,8 +38,13 @@ jobs:
         run: |
           if [ -n "$PAYS" ]; then
             echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # Chaque jour, TOUS les groupes de pays partent en meme temps (un robot par groupe).
+            # Chaque robot ne travaille que 2 a 3 heures : tout est fait bien avant la fin de la journee.
+            G='["BJ TG","CI SN CM","ML BF NE","GN MR SL","NG GH","GA CG CD","TD CF LR GM","FR CA"]'
+            echo "groupes=$G" >> "$GITHUB_OUTPUT"
           else
-            echo 'groupes=["BJ TG","CI SN CM","FR CA"]' >> "$GITHUB_OUTPUT"
+            echo 'groupes=["BJ TG","CI SN CM","ML BF NE","GN MR SL","NG GH","GA CG CD","TD CF LR GM","FR CA"]' >> "$GITHUB_OUTPUT"
           fi
 
   collecte:

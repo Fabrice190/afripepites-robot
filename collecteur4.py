@@ -34,7 +34,10 @@ ZONES = {
     "afrique": ["BJ", "TG", "CI", "SN", "CM"],
     "occident": ["FR", "US"],
 }
-LANGUE_PAYS = {"FR": "fr", "BE": "fr", "CA": "fr", "US": "en", "GB": "en"}
+LANGUE_PAYS = {"FR": "fr", "BE": "fr", "CA": "fr",
+               "ML": "fr", "BF": "fr", "NE": "fr", "GN": "fr", "MR": "fr",
+               "GA": "fr", "CG": "fr", "CD": "fr", "TD": "fr", "CF": "fr",
+               "US": "en", "GB": "en", "NG": "en", "GH": "en", "SL": "en", "LR": "en", "GM": "en"}
 
 # Des MOTS UNIQUES (recherches larges), classes par niche.
 NICHES_FR = {
@@ -68,7 +71,9 @@ NOMS_PAYS = {"CI": "Côte d'Ivoire", "SN": "Sénégal", "CM": "Cameroun",
              "BJ": "Bénin", "TG": "Togo", "ML": "Mali", "BF": "Burkina Faso",
              "CD": "RD Congo", "GA": "Gabon", "NG": "Nigeria", "GH": "Ghana",
              "FR": "France", "BE": "Belgique", "CA": "Canada", "US": "États-Unis",
-             "GB": "Royaume-Uni"}
+             "GB": "Royaume-Uni", "NE": "Niger", "GN": "Guinée", "MR": "Mauritanie",
+             "CG": "Congo", "TD": "Tchad", "CF": "Centrafrique",
+             "SL": "Sierra Leone", "LR": "Liberia", "GM": "Gambie"}
 
 # Mots qui font courir un risque de refus sur Facebook (promesses de sante)
 RISQUE_ELEVE = re.compile(
