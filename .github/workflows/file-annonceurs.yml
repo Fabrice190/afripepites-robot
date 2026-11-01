@@ -1,0 +1,74 @@
+name: Annonceurs tout juste suivis
+
+# Toutes les 10 minutes, le robot regarde si quelqu'un vient de suivre un nouvel annonceur
+# (dans l'application ou sur la bibliotheque Facebook). Si oui, il va chercher ses pubs actives
+# dans tous les pays couverts. S'il n'y a personne, il s'arrete en quelques secondes.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+
+concurrency:
+  group: file-annonceurs
+  cancel-in-progress: false
+
+jobs:
+  annonceurs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Y a-t-il quelqu'un dans la file d'attente ?
+        id: file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
+        run: |
+          N=$(python3 - <<'PY'
+          import json, os, urllib.request
+          req = urllib.request.Request(
+              os.environ["SUPABASE_URL"].rstrip("/") + "/rest/v1/rpc/suivis_a_traiter",
+              data=json.dumps({"code": os.environ["CODE_ROBOT"]}).encode(), method="POST",
+              headers={"apikey": os.environ["SUPABASE_KEY"],
+                       "Authorization": "Bearer " + os.environ["SUPABASE_KEY"],
+                       "Content-Type": "application/json"})
+          try:
+              print(len(json.loads(urllib.request.urlopen(req, timeout=30).read())))
+          except Exception as e:
+              print(0)
+          PY
+          )
+          echo "Annonceurs en attente : $N"
+          if [ "$N" -gt 0 ]; then echo "a_faire=oui" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-python@v5
+        if: steps.file.outputs.a_faire == 'oui'
+        with:
+          python-version: "3.12"
+
+      - name: Installer le robot et son navigateur
+        if: steps.file.outputs.a_faire == 'oui'
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+          sudo apt-get install -y xvfb
+
+      - name: Aller chercher les pubs des annonceurs suivis
+        if: steps.file.outputs.a_faire == 'oui'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
+          ROBOT_CAPTURE: "1"
+        run: xvfb-run -a python collecteur4.py --file --defilements 12
+
+      - name: Garder les photos d'ecran en cas de probleme
+        if: always() && steps.file.outputs.a_faire == 'oui'
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-file
+          path: capture_*.png
+          if-no-files-found: ignore
+          retention-days: 7

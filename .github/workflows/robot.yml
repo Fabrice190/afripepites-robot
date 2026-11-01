@@ -89,7 +89,7 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
           ROBOT_CAPTURE: "1"
-        run: xvfb-run -a python collecteur4.py --pays BJ TG CI SN CM --suivi --defilements 12
+        run: xvfb-run -a python collecteur4.py --suivi --pays-connus --defilements 12
       - name: Garder les photos d'ecran en cas de probleme
         if: always()
         uses: actions/upload-artifact@v4
