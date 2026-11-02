@@ -1,0 +1,43 @@
+name: Pépites Agent IA (envoi du matin)
+
+# Chaque matin vers 8h (heure du Bénin) : pour chaque agent relié à Telegram, le robot cherche le prix d'achat
+# du produit (AliExpress + Alibaba), lit le prix de vente de la boutique et envoie la pépite.
+# Lancé par la base (pg_cron) ; le déclencheur GitHub ci-dessous sert de secours (aucun doublon : un seul envoi par jour).
+on:
+  workflow_dispatch:
+    inputs:
+      test_user:
+        description: "Essai : identifiant d'un seul utilisateur (laisser vide en temps normal)"
+        required: false
+      test_only:
+        description: "oui = essai, l'envoi n'est pas compté"
+        required: false
+        default: ""
+  schedule:
+    - cron: "47 7 * * *"
+
+concurrency:
+  group: agent-pepites
+  cancel-in-progress: false
+
+jobs:
+  envoi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer le navigateur
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Chercher les prix et envoyer
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CODE_ROBOT: ${{ secrets.CODE_ROBOT }}
+          TEST_USER: ${{ inputs.test_user }}
+          TEST_ONLY: ${{ inputs.test_only }}
+        run: python agent_pepites.py
