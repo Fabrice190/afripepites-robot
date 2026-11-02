@@ -7,6 +7,10 @@ on:
       url_image:
         description: "Adresse de l'image du produit"
         required: true
+      site:
+        description: "aliexpress, alibaba ou dhgate"
+        required: false
+        default: "aliexpress"
 
 jobs:
   essai:
@@ -24,7 +28,9 @@ jobs:
       - name: Lancer l'essai
         env:
           URL_IMAGE: ${{ inputs.url_image }}
-        run: python essais/aliexpress_image.py
+          SITE: ${{ inputs.site }}
+        run: |
+          if [ "$SITE" = "aliexpress" ]; then python essais/aliexpress_image.py; else python essais/plateforme.py; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
