@@ -20,20 +20,32 @@ with sync_playwright() as p:
         page.wait_for_timeout(5000)
         print("Page d'accueil :", page.title(), "|", page.url)
         page.screenshot(path="sortie/1_accueil.png")
-        champs = page.locator('input[type="file"]')
-        print("Champs de fichier trouvés :", champs.count())
-        if champs.count() == 0:
-            for sel in ['[class*="camera"]', '[class*="image-search"]', '[class*="picture"]', 'img[src*="camera"]']:
+        # Fermer d'éventuelles fenêtres par-dessus (cookies, pubs, coupons)
+        for sel in ['button:has-text("Accept")', 'button:has-text("Accepter")', '[class*="close"]', '[aria-label="close"]', '[aria-label="Close"]']:
+            try:
                 if page.locator(sel).count():
-                    print("Clic sur", sel)
-                    page.locator(sel).first.click(timeout=5000)
-                    page.wait_for_timeout(2000)
-                    break
+                    page.locator(sel).first.click(timeout=2000, force=True)
+                    print("Fenêtre fermée :", sel)
+                    page.wait_for_timeout(800)
+            except Exception:
+                pass
+        page.keyboard.press("Escape")
+        envoye = False
+        try:
+            with page.expect_file_chooser(timeout=8000) as fc:
+                page.locator('[class*="picture-search-container"]').first.click(timeout=5000, force=True)
+            fc.value.set_files("sortie/produit.jpg")
+            envoye = True
+            print("Image déposée via le sélecteur de fichier")
+        except Exception as e:
+            print("Sélecteur de fichier :", repr(e)[:200])
             champs = page.locator('input[type="file"]')
-            print("Champs de fichier après clic :", champs.count())
-        if champs.count():
-            champs.first.set_input_files("sortie/produit.jpg")
-            page.wait_for_timeout(12000)
+            print("Champs de fichier :", champs.count())
+            if champs.count():
+                champs.first.set_input_files("sortie/produit.jpg")
+                envoye = True
+        if envoye:
+            page.wait_for_timeout(14000)
             print("Après envoi :", page.title(), "|", page.url)
             page.screenshot(path="sortie/2_resultats.png", full_page=False)
             liens = page.eval_on_selector_all('a[href*="/item/"]',
