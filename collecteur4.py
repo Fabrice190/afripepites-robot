@@ -716,6 +716,38 @@ def pages_de_suivi(nom):
         return []
 
 
+def creas_exemple(nom):
+    """Quelques creas deja en base pour cet annonceur (numeros de la bibliotheque Facebook)."""
+    try:
+        return [str(x) for x in (_appel_robot("creas_exemple_suivi", {"p_nom": nom}) or [])]
+    except Exception:
+        return []
+
+
+def pages_depuis_creas(page, nom, pause):
+    """Comme un humain : on part d'une pub DEJA connue de cet annonceur, on ouvre cette pub
+    sur Facebook et on lit le numero de SA page. Evite de se tromper quand plusieurs pages
+    portent le meme nom."""
+    compte = {}
+    for ad_id in creas_exemple(nom):
+        try:
+            page.goto(f"https://www.facebook.com/ads/library/?id={ad_id}", wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(6000)
+            hrefs = page.evaluate("() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)")
+        except Exception as erreur:
+            print(f"   Pub {ad_id} illisible : {erreur}")
+            continue
+        for h in hrefs:
+            m = re.search(r"view_all_page_id=(\d{6,})", h)
+            if m:
+                compte[m.group(1)] = compte.get(m.group(1), 0) + 1
+                break
+        time.sleep(random.uniform(1, 2))
+    ids = [pid for pid, _ in sorted(compte.items(), key=lambda x: -x[1])[:3]]
+    print(f"   Numeros de page lus depuis des pubs connues de {nom!r} : {ids if ids else 'aucun'}")
+    return ids
+
+
 def enregistrer_pages_suivi(nom, ids):
     try:
         _appel_robot("enregistrer_pages_suivi", {"p_nom": nom, "p_ids": list(ids)})
@@ -878,6 +910,8 @@ def main():
                 for nom_suivi in dict.fromkeys(m for (_, _, m) in recherches):
                     ids = pages_de_suivi(nom_suivi)
                     if not ids:
+                        ids = pages_depuis_creas(page, nom_suivi, args.pause)
+                    if not ids:
                         ids = trouver_pages(page, nom_suivi, args.pause)
                         if ids:
                             enregistrer_pages_suivi(nom_suivi, ids)
@@ -909,6 +943,18 @@ def main():
                     for x in morceau:
                         x["_info"] = medias.get(x["id"], {})
                     pubs += morceau
+                if not pubs and not echec and (args.suivi or args.file) and ids_page and ids_page[0]:
+                    # Le numero de page n'a rien donne ici : on essaie aussi par le NOM exact
+                    try:
+                        texte, medias = recuperer_texte(page, pays, mot, 4, args.pause,
+                                                        sortie_rapide=True, page_id=None)
+                        voulu = _norm(mot)
+                        morceau = [x for x in lire_pubs(texte, pays, mot) if voulu and voulu == _norm(x.get("annonceur", ""))]
+                        for x in morceau:
+                            x["_info"] = medias.get(x["id"], {})
+                        pubs += morceau
+                    except Exception as erreur:
+                        print(f"   Recherche par nom impossible : {erreur}")
                 if echec and not pubs:
                     continue
                 medias = {x["id"]: x.get("_info", {}) for x in pubs}
