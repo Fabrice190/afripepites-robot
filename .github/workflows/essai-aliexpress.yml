@@ -1,0 +1,32 @@
+name: Essai recherche par image AliExpress
+
+# Essai manuel : on donne l'adresse d'une image de produit et le robot tente de la chercher sur AliExpress.
+on:
+  workflow_dispatch:
+    inputs:
+      url_image:
+        description: "Adresse de l'image du produit"
+        required: true
+
+jobs:
+  essai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer le navigateur
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Lancer l'essai
+        env:
+          URL_IMAGE: ${{ inputs.url_image }}
+        run: python essais/aliexpress_image.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: captures
+          path: sortie/
