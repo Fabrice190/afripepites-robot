@@ -68,6 +68,8 @@ jobs:
             echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
           elif [ -n "$PASSAGE" ]; then
             case "$PASSAGE" in 1) G="$P1";; 2) G="$P2";; 3) G="$P3";; 4) G="$P4";; esac
+            # Le passage 1 (0h17) est aussi celui des annonceurs suivis (1 fois par jour)
+            if [ "$PASSAGE" = "1" ]; then echo "suivis=oui" >> "$GITHUB_OUTPUT"; fi
             echo "groupes=$G" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "schedule" ]; then
             # Heures en UTC = Benin - 1h. Plages larges pour tolerer un depart avec du retard.
