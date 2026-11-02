@@ -48,8 +48,16 @@ with sync_playwright() as p:
             res = page.eval_on_selector_all("a",
                 "els => els.filter(e => /(US\\\\s?\\\\$|\\\\$|€)\\\\s?\\\\d/.test(e.innerText||'')).slice(0,8).map(e => ({href: e.href.split('?')[0].slice(0,120), texte: (e.innerText||'').replace(/\\\\s+/g,' ').slice(0,170)}))")
             print("RESULTATS :", json.dumps(res, ensure_ascii=False, indent=1))
+            liens = page.eval_on_selector_all('a[href*="product-detail"], a[href*="/product/"], a[href*="/item/"]',
+                "els => els.slice(0,8).map(e => ({href: e.href.split('?')[0].slice(0,120), texte: (e.innerText||'').replace(/\\s+/g,' ').slice(0,200)}))")
+            print("LIENS PRODUITS :", json.dumps(liens, ensure_ascii=False, indent=1))
+            print("TEXTE PAGE :", page.inner_text("body")[:1500].replace("\n", " | "))
         else:
             print("Aucun endroit pour déposer l'image trouvé.")
+            html = page.eval_on_selector_all('[class*="search"], [id*="search"]', "els => els.slice(0,12).map(e => e.tagName+'.'+e.className+'#'+e.id+' :: '+e.outerHTML.slice(0,160))")
+            print("ZONE RECHERCHE :", json.dumps(html, ensure_ascii=False, indent=1))
+            imgs = page.eval_on_selector_all('img[src*="camera"], img[src*="photo"], img[src*="upload"], [class*="camera"], [class*="pic"]', "els => els.slice(0,8).map(e => e.outerHTML.slice(0,200))")
+            print("ICONES :", json.dumps(imgs, ensure_ascii=False))
             print("Texte :", page.inner_text("body")[:400].replace("\n", " "))
     except Exception as e:
         print("ERREUR :", repr(e)[:400])
