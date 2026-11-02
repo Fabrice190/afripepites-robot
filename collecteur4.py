@@ -49,7 +49,19 @@ NICHES_FR = {
                       "cils", "parfum"],
     "Cheveux / barbe": ["cheveux", "chute", "repousse", "barbe", "perruque", "calvitie"],
     "Gadgets / maison": ["gadget", "montre", "écouteurs", "caméra", "lampe", "mixeur",
-                         "ventilateur", "massage", "chargeur"],
+                         "ventilateur", "massage", "chargeur",
+                         # cuisine
+                         "ustensile", "casserole", "poêle", "couteau", "friteuse", "bouilloire",
+                         "rangement", "organisateur",
+                         # voiture
+                         "accessoire auto", "autoradio", "dashcam", "démarreur", "compresseur",
+                         "tapis de voiture", "support téléphone",
+                         # maison
+                         "nettoyage", "aspirateur", "humidificateur", "lampe solaire", "antimoustique",
+                         # électronique
+                         "enceinte", "casque", "powerbank", "smartwatch",
+                         # autres
+                         "outil", "perceuse", "jardin", "rasoir", "tondeuse"],
     "Vitalité / bien-être": ["vitalité", "énergie", "endurance", "virilité", "tonus",
                              "libido", "testostérone", "puissance", "cordyceps",
                              "café", "tisane"],
@@ -64,7 +76,12 @@ NICHES_EN = {
                       "lashes", "perfume", "skin"],
     "Cheveux / barbe": ["hair", "hair loss", "regrowth", "beard", "wig"],
     "Gadgets / maison": ["gadget", "watch", "earbuds", "camera", "lamp", "blender",
-                         "fan", "massage", "charger", "alarm", "knife"],
+                         "fan", "massage", "charger", "alarm", "knife",
+                         "kitchen utensil", "cookware", "frying pan", "air fryer", "kettle",
+                         "organizer", "car accessory", "car stereo", "dashcam", "jump starter",
+                         "tire inflator", "phone holder", "vacuum cleaner", "humidifier",
+                         "solar lamp", "mosquito", "speaker", "headphones", "power bank",
+                         "smartwatch", "tools", "drill", "garden", "shaver", "trimmer"],
     "Autres": ["baby", "shoes", "bag", "car", "motorcycle", "kitchen", "cleaning"],
 }
 NOMS_PAYS = {"CI": "Côte d'Ivoire", "SN": "Sénégal", "CM": "Cameroun",
