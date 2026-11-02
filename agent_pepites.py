@@ -1,6 +1,6 @@
 """Robot Pépites Agent IA : pour chaque agent relié à Telegram, cherche le prix d'achat du produit
 (AliExpress + Alibaba, recherche par image), lit le prix de vente de la boutique, puis demande à la base d'envoyer le message."""
-import json, os, re, statistics, sys, urllib.request
+import json, os, re, statistics, sys, urllib.error, urllib.request
 from playwright.sync_api import sync_playwright
 
 URL = os.environ["SUPABASE_URL"].rstrip("/")
@@ -14,7 +14,11 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 def rpc(nom, corps):
     req = urllib.request.Request(f"{URL}/rest/v1/rpc/{nom}", data=json.dumps(corps).encode(), method="POST",
                                  headers={"apikey": KEY, "Authorization": "Bearer " + KEY, "Content-Type": "application/json"})
-    return json.loads(urllib.request.urlopen(req, timeout=60).read() or "null")
+    try:
+        return json.loads(urllib.request.urlopen(req, timeout=60).read() or "null")
+    except urllib.error.HTTPError as e:
+        print("ERREUR de la base sur", nom, ":", e.code, e.read()[:500])
+        raise
 
 
 def taux_usd_fcfa():
