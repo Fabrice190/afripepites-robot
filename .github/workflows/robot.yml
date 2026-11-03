@@ -60,7 +60,7 @@ jobs:
             fi
           fi
           # Les 4 passages du jour (2 robots chacun)
-          P1='["BJ TG","CI SN CM"]'      # 0h00 Benin
+          P1='["BJ TG","CI","SN","CM"]'  # 0h00 Benin (4 robots)
           P2='["ML","BF NE","GN","MR SL"]'   # 6h00 Benin (4 robots)
           P3='["NG","GH GA","CG","CD"]'      # 12h00 Benin (4 robots)
           P4='["TD CF","LR GM","FR CA"]' # 20h00 Benin (3 robots : le groupe a 4 pays durait plus de 3 h)
