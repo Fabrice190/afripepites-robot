@@ -23,7 +23,7 @@ on:
         options: [collecte, suivi]
         default: collecte
   # Lancement automatique, 4 fois par jour : 0h17, 6h17, 12h17 et 20h17 (heure du Benin),
-  # avec 2 robots (2 groupes de pays) a chaque fois. (voir l'etape "plan")
+  # avec 2 ou 3 robots (groupes de pays) a chaque fois. (voir l'etape "plan")
   schedule:
     - cron: "17 23,5,11,19 * * *"
     # Declencheur de secours, 30 minutes apres : GitHub retarde ou saute parfois le premier.
@@ -63,7 +63,7 @@ jobs:
           P1='["BJ TG","CI SN CM"]'      # 0h17 Benin
           P2='["ML BF NE","GN MR SL"]'   # 6h17 Benin
           P3='["NG GH","GA CG CD"]'      # 12h17 Benin
-          P4='["TD CF LR GM","FR CA"]'   # 20h17 Benin
+          P4='["TD CF","LR GM","FR CA"]' # 20h17 Benin (3 robots : le groupe a 4 pays durait plus de 3 h)
           if [ -n "$PAYS" ]; then
             echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
           elif [ -n "$PASSAGE" ]; then
