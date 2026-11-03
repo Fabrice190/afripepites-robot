@@ -7,9 +7,9 @@ on:
         description: "Codes pays separes par des espaces (ex : BJ  ou  BJ TG). VIDE = tous les pays, en 3 groupes"
         default: ""
       passage:
-        description: "Lancer un des 4 passages du jour (1 = 0h, 2 = 6h, 3 = 12h, 4 = 20h). VIDE = tous les pays. Ignore si 'pays' est rempli."
+        description: "Lancer un des 4 passages du jour (1 = 0h, 2 = 6h, 3 = 12h, 4 = 20h, 5 = 3h : suivi des annonceurs seulement). VIDE = tous les pays. Ignore si 'pays' est rempli."
         type: choice
-        options: ["", "1", "2", "3", "4"]
+        options: ["", "1", "2", "3", "4", "5"]
         default: ""
       mots:
         description: "Mots a chercher separes par des espaces (vide = tous les mots du robot)"
@@ -67,14 +67,14 @@ jobs:
           if [ -n "$PAYS" ]; then
             echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
           elif [ -n "$PASSAGE" ]; then
-            case "$PASSAGE" in 1) G="$P1";; 2) G="$P2";; 3) G="$P3";; 4) G="$P4";; esac
-            # Le passage 1 (0h00) est aussi celui des annonceurs suivis (1 fois par jour)
-            if [ "$PASSAGE" = "1" ]; then echo "suivis=oui" >> "$GITHUB_OUTPUT"; fi
+            case "$PASSAGE" in 1) G="$P1";; 2) G="$P2";; 3) G="$P3";; 4) G="$P4";; 5) G="[]";; esac
+            # Le passage 5 (3h00) est celui des annonceurs suivis (1 fois par jour)
+            if [ "$PASSAGE" = "5" ]; then echo "suivis=oui" >> "$GITHUB_OUTPUT"; fi
             echo "groupes=$G" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "schedule" ]; then
             # Heures en UTC = Benin - 1h. Plages larges pour tolerer un depart avec du retard.
             H=$((10#$(date -u +%H)))
-            if   [ "$H" -ge 22 ] || [ "$H" -lt 2 ]; then G="$P1"; echo "suivis=oui" >> "$GITHUB_OUTPUT"   # annonceurs suivis : 1 fois par jour (0h00)
+            if   [ "$H" -ge 22 ] || [ "$H" -lt 2 ]; then G="$P1"
             elif [ "$H" -lt 9 ];  then G="$P2"
             elif [ "$H" -lt 16 ]; then G="$P3"
             else                       G="$P4"
