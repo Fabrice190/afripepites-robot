@@ -409,7 +409,13 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
                "Authorization": "Bearer " + conf["cle_publique"],
                "Content-Type": "application/json"}
     lignes = []
+    ignorees = 0
+    aujourdhui_envoi = date.today()
     for k, l in base.items():
+        age = jours_depuis(l, aujourdhui_envoi)
+        if age is not None and age > AGE_MAX_JOURS:
+            ignorees += 1
+            continue
         lignes.append({
             "cle": k, "id": l.get("id", ""), "pays": l.get("pays", ""),
             "niche": nettoyer(l.get("niche")), "mot_cle": nettoyer(l.get("mot_cle")),
@@ -425,6 +431,9 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
             "video_url": l.get("video_url", ""),
             "lien_dest": l.get("lien_dest", ""),
         })
+    if ignorees:
+        print(f"({ignorees} creas de plus de {AGE_MAX_JOURS} jours ignorees, non envoyees a la base.)")
+
     def envoyer_lot(lot):
         """Envoie un lot. Si la base repond 'trop long' (timeout), on coupe le lot en deux et on recommence."""
         corps = json.dumps({"code": conf["code_robot"], "lignes": lot}).encode("utf-8")
@@ -460,6 +469,7 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
 # ---------------------------------------------------------------
 # Excel soigne
 # ---------------------------------------------------------------
+AGE_MAX_JOURS = 400  # les creas actives depuis plus longtemps ne sont plus gardees dans la base en ligne
 ILLEGAL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 
