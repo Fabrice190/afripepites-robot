@@ -22,13 +22,13 @@ on:
         type: choice
         options: [collecte, suivi]
         default: collecte
-  # Lancement automatique, 4 fois par jour : 0h17, 6h17, 12h17 et 20h17 (heure du Benin),
+  # Lancement automatique, 4 fois par jour : 0h00, 6h00, 12h00 et 20h00 (heure du Benin),
   # avec 2 ou 3 robots (groupes de pays) a chaque fois. (voir l'etape "plan")
   schedule:
-    - cron: "17 23,5,11,19 * * *"
+    - cron: "0 23,5,11,19 * * *"
     # Declencheur de secours, 30 minutes apres : GitHub retarde ou saute parfois le premier.
     # L'etape "plan" ignore ce lancement si un robot a deja demarre dans les 110 dernieres minutes.
-    - cron: "47 23,5,11,19 * * *"
+    - cron: "30 23,5,11,19 * * *"
 
 concurrency:
   group: robot
@@ -60,21 +60,21 @@ jobs:
             fi
           fi
           # Les 4 passages du jour (2 robots chacun)
-          P1='["BJ TG","CI SN CM"]'      # 0h17 Benin
-          P2='["ML BF NE","GN MR SL"]'   # 6h17 Benin
-          P3='["NG GH","GA CG CD"]'      # 12h17 Benin
-          P4='["TD CF","LR GM","FR CA"]' # 20h17 Benin (3 robots : le groupe a 4 pays durait plus de 3 h)
+          P1='["BJ TG","CI SN CM"]'      # 0h00 Benin
+          P2='["ML","BF NE","GN","MR SL"]'   # 6h00 Benin (4 robots)
+          P3='["NG","GH GA","CG","CD"]'      # 12h00 Benin (4 robots)
+          P4='["TD CF","LR GM","FR CA"]' # 20h00 Benin (3 robots : le groupe a 4 pays durait plus de 3 h)
           if [ -n "$PAYS" ]; then
             echo "groupes=$(jq -cn --arg p "$PAYS" '[$p]')" >> "$GITHUB_OUTPUT"
           elif [ -n "$PASSAGE" ]; then
             case "$PASSAGE" in 1) G="$P1";; 2) G="$P2";; 3) G="$P3";; 4) G="$P4";; esac
-            # Le passage 1 (0h17) est aussi celui des annonceurs suivis (1 fois par jour)
+            # Le passage 1 (0h00) est aussi celui des annonceurs suivis (1 fois par jour)
             if [ "$PASSAGE" = "1" ]; then echo "suivis=oui" >> "$GITHUB_OUTPUT"; fi
             echo "groupes=$G" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "schedule" ]; then
             # Heures en UTC = Benin - 1h. Plages larges pour tolerer un depart avec du retard.
             H=$((10#$(date -u +%H)))
-            if   [ "$H" -ge 22 ] || [ "$H" -lt 2 ]; then G="$P1"; echo "suivis=oui" >> "$GITHUB_OUTPUT"   # annonceurs suivis : 1 fois par jour (0h17)
+            if   [ "$H" -ge 22 ] || [ "$H" -lt 2 ]; then G="$P1"; echo "suivis=oui" >> "$GITHUB_OUTPUT"   # annonceurs suivis : 1 fois par jour (0h00)
             elif [ "$H" -lt 9 ];  then G="$P2"
             elif [ "$H" -lt 16 ]; then G="$P3"
             else                       G="$P4"
