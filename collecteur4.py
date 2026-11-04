@@ -410,11 +410,15 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
                "Content-Type": "application/json"}
     lignes = []
     ignorees = 0
+    exclus = 0
     aujourdhui_envoi = date.today()
     for k, l in base.items():
         age = jours_depuis(l, aujourdhui_envoi)
         if age is not None and age > AGE_MAX_JOURS:
             ignorees += 1
+            continue
+        if str(l.get("annonceur", "")).strip().lower() in ANNONCEURS_EXCLUS:
+            exclus += 1
             continue
         lignes.append({
             "cle": k, "id": l.get("id", ""), "pays": l.get("pays", ""),
@@ -431,6 +435,8 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
             "video_url": l.get("video_url", ""),
             "lien_dest": l.get("lien_dest", ""),
         })
+    if exclus:
+        print(f"({exclus} creas d'annonceurs exclus (logiciels, applis, formations) non envoyees a la base.)")
     if ignorees:
         print(f"({ignorees} creas de plus de {AGE_MAX_JOURS} jours ignorees, non envoyees a la base.)")
 
@@ -469,6 +475,15 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
 # ---------------------------------------------------------------
 # Excel soigne
 # ---------------------------------------------------------------
+# Annonceurs qui ne vendent pas de produit a revendre (logiciels, applis, formations, places de marche) :
+# ils ne sont pas envoyes a la base. Noms en minuscules.
+ANNONCEURS_EXCLUS = {
+    "alibaba.com", "turboscribe", "hearty app", "freakaudio.store", "scale certified",
+    "cinematic composing", "qeravio", "translate now ios", "promuse.ai", "facelessreels",
+    "iman gadzhi", "ewa: learn languages", "sleep monitor - sleep recorder, talk & cycle",
+    "videoexpress.ai", "woocommerce", "elevenlabs", "vid.ai", "moonly", "polsia",
+    "clonevoiceai", "family rosary", "trending crowdfunding projects",
+}
 AGE_MAX_JOURS = 400  # les creas actives depuis plus longtemps ne sont plus gardees dans la base en ligne
 ILLEGAL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
