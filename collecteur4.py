@@ -423,6 +423,19 @@ def charger_config(chemin=FICHIER_CONFIG):
     return None
 
 
+# --- Filtre "signal de vente" pour la niche Accroches (phrases tres larges => beaucoup de bruit) ---
+_SIGNAL_TEXTE = re.compile(
+    r"(\bprix\b|\btarif|livraison|\bcommand|whatsapp|wa\.me|\bpromo|fcfa|f\s?cfa|\bcfa\b|"
+    r"\d\s?(\$|€|usd|eur|fc\b|frs?\b|f\b)|[$€]\s?\d|\bachet|paiement|boutique|\binbox\b|\bcommande)", re.I)
+_SIGNAL_LIEN = re.compile(
+    r"(myshopify|youcan|storeep|/products?/|/product/|\.shop\b|shop|store|boutique|wa\.me|api\.whatsapp|t\.me)", re.I)
+
+
+def a_signal_de_vente(l):
+    """Vrai si la crea ressemble a une vraie vente (prix, livraison, WhatsApp, lien boutique)."""
+    return bool(_SIGNAL_TEXTE.search(str(l.get("texte", ""))) or _SIGNAL_LIEN.search(str(l.get("lien_dest", ""))))
+
+
 def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
     """Envoie toute la base dans Supabase. Ne fait rien si la config manque."""
     conf = charger_config(chemin_config)
@@ -436,6 +449,7 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
     lignes = []
     ignorees = 0
     exclus = 0
+    sans_vente = 0
     aujourdhui_envoi = date.today()
     for k, l in base.items():
         age = jours_depuis(l, aujourdhui_envoi)
@@ -444,6 +458,9 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
             continue
         if str(l.get("annonceur", "")).strip().lower() in ANNONCEURS_EXCLUS:
             exclus += 1
+            continue
+        if str(l.get("niche", "")).strip() == "Accroches" and not a_signal_de_vente(l):
+            sans_vente += 1
             continue
         lignes.append({
             "cle": k, "id": l.get("id", ""), "pays": l.get("pays", ""),
@@ -462,6 +479,8 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
         })
     if exclus:
         print(f"({exclus} creas d'annonceurs exclus (logiciels, applis, formations) non envoyees a la base.)")
+    if sans_vente:
+        print(f"({sans_vente} creas 'Accroches' sans signal de vente (prix, livraison, WhatsApp, boutique) non envoyees.)")
     if ignorees:
         print(f"({ignorees} creas de plus de {AGE_MAX_JOURS} jours ignorees, non envoyees a la base.)")
 
