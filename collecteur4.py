@@ -43,10 +43,16 @@ LANGUE_PAYS = {"FR": "fr", "BE": "fr", "CA": "fr",
 NICHES_FR = {
     "Santé": ["douleur", "diabète", "tension", "prostate", "érection", "articulations",
               "arthrose", "hémorroïdes", "ulcère", "fatigue", "insomnie",
-              "paludisme", "cholestérol", "digestion", "constipation", "minceur", "ventre"],
+              "paludisme", "cholestérol", "digestion", "constipation", "minceur", "ventre",
+              "gynécomastie",
+              # expressions exactes (le signe = devant veut dire : phrase exacte)
+              "=douleurs musculaires et articulaires", "=soulagez naturellement", "=plus de confort",
+              "=formule 100% naturelle sans effet secondaire", "=solution naturelle"],
     "Beauté / soin": ["savon", "crème", "huile", "sérum", "vergetures", "boutons",
                       "taches", "rides", "éclaircissant", "dentifrice", "ongles",
-                      "cils", "parfum"],
+                      "cils", "parfum",
+                      "=sourire éclatant", "=vous cachez votre sourire", "=tu caches ton sourire",
+                      "=dents jaunes", "=les mauvaises odeurs"],
     "Cheveux / barbe": ["cheveux", "chute", "repousse", "barbe", "perruque", "calvitie"],
     "Gadgets / maison": ["gadget", "montre", "écouteurs", "caméra", "lampe", "mixeur",
                          "ventilateur", "massage", "chargeur",
@@ -64,8 +70,20 @@ NICHES_FR = {
                          "outil", "perceuse", "jardin", "rasoir", "tondeuse"],
     "Vitalité / bien-être": ["vitalité", "énergie", "endurance", "virilité", "tonus",
                              "libido", "testostérone", "puissance", "cordyceps",
-                             "café", "tisane"],
+                             "café", "tisane",
+                             "=retrouvez l'énergie", "=manque d'énergie", "=plus d'énergie ou d'endurance",
+                             "=booste ton énergie", "=boostez votre quotidien", "=prends soin de ta virilité",
+                             "=le secret des hommes", "=retrouve ta puissance", "=redeviens l'homme",
+                             "=tu veux assurer", "=fatigué", "=vous manquez de",
+                             "=retrouvez plus de confiance", "=finis les performances"],
     "Autres": ["bébé", "chaussures"],
+    "Cadeaux": ["=cadeau de noël", "=offrez-lui ce collier", "=le cadeau parfait", "=un cadeau offert"],
+    "Accroches": ["=ne laissez plus", "=ne laisse plus", "=ne laissez pas", "=il est temps de changer",
+                  "=il est temps de réagir", "=il est temps de reprendre le contrôle", "=marre de",
+                  "=assez de", "=dites adieu à", "=offre spéciale", "=offre exceptionnelle",
+                  "=stock limité", "=profitez maintenant", "=ne manquez pas", "=résultat visible",
+                  "=devenez le boss", "=découvrez le secret", "=simple à utiliser",
+                  "=facile à appliquer", "=offrez à votre corps"],
 }
 NICHES_EN = {
     "Santé": ["pain", "diabetes", "blood pressure", "prostate", "joint", "arthritis",
@@ -280,6 +298,13 @@ def recuperer_texte(page, pays, mot, defilements, pause, sortie_rapide=False, pa
             "https://www.facebook.com/ads/library/?active_status=active&ad_type=all"
             f"&country={pays}&view_all_page_id={page_id}"
             "&search_type=page&media_type=all"
+        )
+    elif mot.startswith("="):
+        # Expression exacte : les mots dans cet ordre
+        url = (
+            "https://www.facebook.com/ads/library/?active_status=active&ad_type=all"
+            f"&country={pays}&q={quote_plus(chr(34) + mot[1:] + chr(34))}"
+            "&search_type=keyword_exact_phrase&media_type=all"
         )
     else:
         url = (
@@ -962,7 +987,7 @@ def main():
                     if args.debug:
                         nom = f"debug_{pays}_" + re.sub(r"\W+", "_", mot) + ".txt"
                         Path(nom).write_text(texte, encoding="utf-8")
-                    morceau = lire_pubs(texte, pays, mot)
+                    morceau = lire_pubs(texte, pays, mot[1:] if mot.startswith("=") else mot)
                     if (args.suivi or args.file) and not pid:
                         # Sans numero de page : on ne garde que les pubs de CE vendeur (par son nom)
                         voulu = _norm(mot)
