@@ -483,6 +483,8 @@ ANNONCEURS_EXCLUS = {
     "iman gadzhi", "ewa: learn languages", "sleep monitor - sleep recorder, talk & cycle",
     "videoexpress.ai", "woocommerce", "elevenlabs", "vid.ai", "moonly", "polsia",
     "clonevoiceai", "family rosary", "trending crowdfunding projects",
+    # grandes marques (pas revendables en dropshipping)
+    "colgate", "colgate canada", "nivea", "pedigree canada", "silk canada", "silk hair",
 }
 AGE_MAX_JOURS = 400  # les creas actives depuis plus longtemps ne sont plus gardees dans la base en ligne
 ILLEGAL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
