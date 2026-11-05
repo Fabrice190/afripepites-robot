@@ -437,6 +437,21 @@ def a_signal_de_vente(l):
     return bool(_SIGNAL_TEXTE.search(str(l.get("texte", ""))) or _SIGNAL_LIEN.search(str(l.get("lien_dest", ""))))
 
 
+# Livres (romans Kindle) et annonceurs Amazon : pas des produits a revendre en cash a la livraison.
+_ANNONCEUR_AMAZON = re.compile(r"(^amazon\b|with amazon associates$)", re.I)
+_TEXTE_LIVRE = re.compile(r"kindle unlimited", re.I)
+LIVRES_EXCLUS = {
+    "christian romantic suspense", "lara adrian books", "siobhan davis", "olivia darcy autora",
+    "skye webb - herbal medicine & wellness author",
+}
+
+
+def est_livre_ou_amazon(l):
+    nom = str(l.get("annonceur", "")).strip()
+    return bool(nom.lower() in LIVRES_EXCLUS or _ANNONCEUR_AMAZON.search(nom)
+                or _TEXTE_LIVRE.search(str(l.get("texte", ""))))
+
+
 def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
     """Envoie toute la base dans Supabase. Ne fait rien si la config manque."""
     conf = charger_config(chemin_config)
@@ -451,6 +466,7 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
     ignorees = 0
     exclus = 0
     sans_vente = 0
+    livres_amazon = 0
     aujourdhui_envoi = date.today()
     for k, l in base.items():
         age = jours_depuis(l, aujourdhui_envoi)
@@ -459,6 +475,9 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
             continue
         if str(l.get("annonceur", "")).strip().lower() in ANNONCEURS_EXCLUS:
             exclus += 1
+            continue
+        if est_livre_ou_amazon(l):
+            livres_amazon += 1
             continue
         if str(l.get("niche", "")).strip() == "Accroches" and not a_signal_de_vente(l):
             sans_vente += 1
@@ -480,6 +499,8 @@ def envoyer_supabase(base, chemin_config=FICHIER_CONFIG, paquet=50):
         })
     if exclus:
         print(f"({exclus} creas d'annonceurs exclus (logiciels, applis, formations) non envoyees a la base.)")
+    if livres_amazon:
+        print(f"({livres_amazon} creas de livres / annonceurs Amazon non envoyees.)")
     if sans_vente:
         print(f"({sans_vente} creas 'Accroches' sans signal de vente (prix, livraison, WhatsApp, boutique) non envoyees.)")
     if ignorees:
