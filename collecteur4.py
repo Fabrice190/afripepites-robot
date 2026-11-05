@@ -61,7 +61,8 @@ NICHES_FR = {
                          "rangement", "organisateur",
                          # voiture
                          "accessoire auto", "autoradio", "dashcam", "démarreur", "compresseur",
-                         "tapis de voiture", "support téléphone",
+                         "tapis de voiture", "support téléphone", "support voiture", "chargeur sans fil",
+                         "chargeur voiture", "support magnétique",
                          # maison
                          "nettoyage", "aspirateur", "humidificateur", "lampe solaire", "antimoustique",
                          # électronique
@@ -97,7 +98,7 @@ NICHES_EN = {
                          "fan", "massage", "charger", "alarm", "knife",
                          "kitchen utensil", "cookware", "frying pan", "air fryer", "kettle",
                          "organizer", "car accessory", "car stereo", "dashcam", "jump starter",
-                         "tire inflator", "phone holder", "vacuum cleaner", "humidifier",
+                         "tire inflator", "phone holder", "car phone mount", "wireless charger", "vacuum cleaner", "humidifier",
                          "solar lamp", "mosquito", "speaker", "headphones", "power bank",
                          "smartwatch", "tools", "drill", "garden", "shaver", "trimmer"],
     "Autres": ["baby", "shoes", "bag", "car", "motorcycle", "kitchen", "cleaning"],
